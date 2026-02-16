@@ -2,7 +2,6 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pygame
-import random
 
 # GAME CONSTANTS
 SCREEN_WIDTH = 400
@@ -26,9 +25,9 @@ class FlappyBirdEnv(gym.Env):
         self.action_space = spaces.Discrete(2)
 
         # Observation: [bird_y, bird_speed, dist_to_next_pipe, top_pipe_bottom_y, bottom_pipe_top_y]
-        # All values normalized to roughly [0, 1] range
+        # Pygame [top = 0, bird_y increases as bird falls]
         self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(5,), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32
         )
 
         # Pygame setup (only init display if rendering)
@@ -53,6 +52,7 @@ class FlappyBirdEnv(gym.Env):
         self.ground_img = pygame.image.load('assets/sprites/base.png').convert_alpha()
         self.ground_img = pygame.transform.scale(self.ground_img, (SCREEN_WIDTH * 2, GROUND_HEIGHT))
 
+    # Gets observation of environment
     def _get_obs(self):
         # Find the next pipe pair (closest pipe ahead of the bird)
         next_pipe = None
@@ -71,12 +71,14 @@ class FlappyBirdEnv(gym.Env):
             top_pipe_bottom = 0.5
             bot_pipe_top = 0.5
         else:
+            # Observe next incoming pipe
             dist_to_pipe = (next_pipe["x"] - self.bird_x) / SCREEN_WIDTH
             gap_top = next_pipe["gap_y"]
             gap_bot = next_pipe["gap_y"] + PIPE_GAP
             top_pipe_bottom = gap_top / SCREEN_HEIGHT
             bot_pipe_top = gap_bot / SCREEN_HEIGHT
 
+        # Our agent can see where the bird is, how fast it's falling, and information about next pipe
         obs = np.array([
             self.bird_y / SCREEN_HEIGHT,
             self.bird_speed / SPEED,
@@ -87,10 +89,12 @@ class FlappyBirdEnv(gym.Env):
 
         return obs
 
+    # Spawns a pipe 
     def _spawn_pipe(self, x):
-        gap_y = random.randint(100, SCREEN_HEIGHT - GROUND_HEIGHT - PIPE_GAP - 100)
-        self.pipes.append({"x": x, "gap_y": gap_y})
+        gap_y = self.np_random.integers(100, SCREEN_HEIGHT - GROUND_HEIGHT - PIPE_GAP - 100)
+        self.pipes.append({"x": x, "gap_y": int(gap_y)})
 
+    # Resets the environment
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
@@ -111,6 +115,7 @@ class FlappyBirdEnv(gym.Env):
         obs = self._get_obs()
         return obs, {}
 
+    # Every step advances the game by one frame
     def step(self, action):
         self.frame += 1
 
@@ -118,7 +123,7 @@ class FlappyBirdEnv(gym.Env):
         if action == 1 and not self.bird_dead:
             self.bird_speed = -SPEED
 
-        # Update bird physics
+        # Update bird 
         self.bird_speed += GRAVITY
         self.bird_y += self.bird_speed
 
@@ -152,21 +157,22 @@ class FlappyBirdEnv(gym.Env):
         terminated = False
         reward = 0.1  # small reward for surviving each frame
 
-        # Ceiling
+        # Lose condition for hitting ceiling
         if self.bird_y <= 0:
             terminated = True
 
-        # Ground
+        # Lose condition for hitting ground
         if self.bird_y + bird_h >= SCREEN_HEIGHT - GROUND_HEIGHT:
             terminated = True
 
-        # Pipes
+        # Pipe collision and lose condition for hitting pipe
         for p in self.pipes:
             top_rect = pygame.Rect(p["x"], p["gap_y"] - PIPE_HEIGHT, PIPE_WIDTH, PIPE_HEIGHT)
             bot_rect = pygame.Rect(p["x"], p["gap_y"] + PIPE_GAP, PIPE_WIDTH, PIPE_HEIGHT)
             if bird_rect.colliderect(top_rect) or bird_rect.colliderect(bot_rect):
                 terminated = True
 
+        # Punish agent for losing
         if terminated:
             reward = -1.0
 
@@ -175,7 +181,7 @@ class FlappyBirdEnv(gym.Env):
             pipe_mid = p["x"] + PIPE_WIDTH / 2
             bird_mid = self.bird_x + bird_w / 2
             if abs(pipe_mid - bird_mid) < GAME_SPEED / 2 + 0.5:
-                reward += 1.0
+                reward += 1.5
 
         obs = self._get_obs()
         truncated = False
@@ -185,6 +191,7 @@ class FlappyBirdEnv(gym.Env):
 
         return obs, reward, terminated, truncated, {"score": self.score}
 
+    # Allows us to visualize agent playing in the environment
     def render(self):
         if self.screen is None:
             self._init_render()
