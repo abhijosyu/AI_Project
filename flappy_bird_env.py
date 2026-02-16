@@ -30,6 +30,16 @@ class FlappyBirdEnv(gym.Env):
             low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32
         )
 
+        # Game state fields
+        self.bird_x = SCREEN_WIDTH / 6
+        self.bird_y = SCREEN_HEIGHT / 2
+        self.bird_speed = 0
+        self.bird_dead = False
+        self.score = 0
+        self.frame = 0
+        self.pipes = []
+        self.ground_x = 0
+
         # Pygame setup (only init display if rendering)
         self.screen = None
         self.clock = None
