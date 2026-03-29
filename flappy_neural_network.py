@@ -4,7 +4,7 @@ layers = [5, 8, 2]
 
 class FlappyNeuralNetwork():
     
-    def __init__(self, layers, activation):
+    def __init__(self, layers, activation="tanh"):
         self.layers = layers
         self.activation = activation
         self.weights = []

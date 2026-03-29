@@ -8,7 +8,7 @@ train_flag = 'train' in sys.argv
 
 # hyperparameters
 layers = [5, 8, 2]
-population_size = 100
+population_size = 200
 generations = 50
 mutation_rate = 0.1
 

@@ -15,7 +15,7 @@ def evaluate_fitness(genome, layers):
     obs, _ = env.reset()
     total_reward = 0
     
-    while True:
+    while frames < max_frames:
         action = net.forward_propagation(obs)
         obs, reward, terminated, truncated, info = env.step(action)
         total_reward += reward
