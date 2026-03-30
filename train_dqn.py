@@ -31,7 +31,7 @@ def main():
         env,
         verbose=1,
         buffer_size=50_000,
-        learning_starts=10_000,
+        learning_starts=5_000,
         batch_size=64,
         train_freq=4,
         target_update_interval=1_000,
