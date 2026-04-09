@@ -230,6 +230,16 @@ class FlappyBirdEnv(gym.Env):
         # Draw bird
         self.screen.blit(self.bird_img, (self.bird_x, self.bird_y))
 
+        # Draw collision boxes (debug)
+        bird_w, bird_h = 34, 24
+        pygame.draw.rect(self.screen, (255, 0, 0), (self.bird_x, self.bird_y, bird_w, bird_h), 2)
+        for p in self.pipes:
+            top_rect = pygame.Rect(p["x"], p["gap_y"] - PIPE_HEIGHT, PIPE_WIDTH, PIPE_HEIGHT)
+            bot_rect = pygame.Rect(p["x"], p["gap_y"] + PIPE_GAP, PIPE_WIDTH, PIPE_HEIGHT)
+            pygame.draw.rect(self.screen, (0, 255, 0), top_rect, 2)
+            pygame.draw.rect(self.screen, (0, 255, 0), bot_rect, 2)
+
+
         # Draw score
         font = pygame.font.SysFont(None, 36)
         score_surf = font.render(str(self.score), True, (255, 255, 255))
