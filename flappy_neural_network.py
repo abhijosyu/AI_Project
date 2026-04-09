@@ -1,10 +1,8 @@
 import numpy as np
 
-layers = [5, 8, 2]
-
 class FlappyNeuralNetwork():
     
-    def __init__(self, layers, activation):
+    def __init__(self, layers, activation='tanh'):
         self.layers = layers
         self.activation = activation
         self.weights = []
@@ -23,7 +21,8 @@ class FlappyNeuralNetwork():
         for i in range(len(self.weights)):
             weighted_sum = np.dot(activations, self.weights[i]) + self.biases[i]
             if i < len(self.weights) - 1:
-                activations = np.tanh(weighted_sum)
+                if (self.activation == "tanh"):
+                    activations = np.tanh(weighted_sum)
             else:
                 activations = weighted_sum
         return np.argmax(activations)
