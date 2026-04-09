@@ -2,17 +2,27 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pygame
+import time
 
-# GAME CONSTANTS
-SCREEN_WIDTH = 400
-SCREEN_HEIGHT = 600
-SPEED = 8
-GRAVITY = 0.5
-GAME_SPEED = 3
-PIPE_WIDTH = 80
-PIPE_HEIGHT = 500
-PIPE_GAP = 150
-GROUND_HEIGHT = 100
+# GAME CONSTANTS (matched to original Flappy Bird)
+SCREEN_WIDTH = 288
+SCREEN_HEIGHT = 512
+FLAP_POWER = -9.0        # upward impulse on flap
+GRAVITY = 1.0             # downward acceleration per tick
+MAX_FALL_SPEED = 10.0     # terminal velocity
+PIPE_SPEED = 4.0          # horizontal pipe scroll per tick
+PIPE_WIDTH = 52
+PIPE_HEIGHT = 320
+PIPE_GAP = 100
+PIPE_SPACING = 200        # horizontal distance between pipe pairs
+GROUND_HEIGHT = 112
+BIRD_WIDTH = 34
+BIRD_HEIGHT = 24
+
+# Physics tick rate — game logic always runs at this rate
+TICK_RATE = 30
+TICK_DT = 1.0 / TICK_RATE
+
 
 class FlappyBirdEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
@@ -25,20 +35,22 @@ class FlappyBirdEnv(gym.Env):
         self.action_space = spaces.Discrete(2)
 
         # Observation: [bird_y, bird_speed, dist_to_next_pipe, top_pipe_bottom_y, bottom_pipe_top_y]
-        # Pygame [top = 0, bird_y increases as bird falls]
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32
         )
 
         # Game state fields
-        self.bird_x = SCREEN_WIDTH / 6
-        self.bird_y = SCREEN_HEIGHT / 2
-        self.bird_speed = 0
+        self.bird_x = 0.0
+        self.bird_y = 0.0
+        self.bird_speed = 0.0
         self.bird_dead = False
         self.score = 0
         self.frame = 0
         self.pipes = []
-        self.ground_x = 0
+        self.ground_x = 0.0
+
+        # Timing for frame-rate-independent rendering
+        self.last_tick_time = None
 
         # Pygame setup (only init display if rendering)
         self.screen = None
@@ -62,7 +74,6 @@ class FlappyBirdEnv(gym.Env):
         self.ground_img = pygame.image.load('assets/sprites/base.png').convert_alpha()
         self.ground_img = pygame.transform.scale(self.ground_img, (SCREEN_WIDTH * 2, GROUND_HEIGHT))
 
-    # Gets observation of environment
     def _get_obs(self):
         # Find the next pipe pair (closest pipe ahead of the bird)
         next_pipe = None
@@ -76,22 +87,19 @@ class FlappyBirdEnv(gym.Env):
                     next_pipe = p
 
         if next_pipe is None:
-            # No pipes ahead, use defaults
             dist_to_pipe = 1.0
             top_pipe_bottom = 0.5
             bot_pipe_top = 0.5
         else:
-            # Observe next incoming pipe
             dist_to_pipe = (next_pipe["x"] - self.bird_x) / SCREEN_WIDTH
             gap_top = next_pipe["gap_y"]
             gap_bot = next_pipe["gap_y"] + PIPE_GAP
             top_pipe_bottom = gap_top / SCREEN_HEIGHT
             bot_pipe_top = gap_bot / SCREEN_HEIGHT
 
-        # Our agent can see where the bird is, how fast it's falling, and information about next pipe
         obs = np.array([
             self.bird_y / SCREEN_HEIGHT,
-            self.bird_speed / SPEED,
+            self.bird_speed / MAX_FALL_SPEED,
             dist_to_pipe,
             top_pipe_bottom,
             bot_pipe_top,
@@ -99,109 +107,113 @@ class FlappyBirdEnv(gym.Env):
 
         return obs
 
-    # Spawns a pipe 
     def _spawn_pipe(self, x):
-        gap_y = self.np_random.integers(100, SCREEN_HEIGHT - GROUND_HEIGHT - PIPE_GAP - 100)
-        self.pipes.append({"x": x, "gap_y": int(gap_y)})
+        # Gap can appear between 20% and 60% of playable height (above ground)
+        playable_height = SCREEN_HEIGHT - GROUND_HEIGHT
+        min_gap_y = int(playable_height * 0.2)
+        max_gap_y = int(playable_height * 0.6)
+        gap_y = self.np_random.integers(min_gap_y, max_gap_y)
+        self.pipes.append({"x": float(x), "gap_y": int(gap_y), "scored": False})
 
-    # Resets the environment
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
-        self.bird_x = SCREEN_WIDTH / 6
+        self.bird_x = SCREEN_WIDTH / 5
         self.bird_y = SCREEN_HEIGHT / 2
-        self.bird_speed = 0
+        self.bird_speed = 0.0
         self.bird_dead = False
         self.score = 0
         self.frame = 0
 
-        # Pipe list: each pipe is {"x": float, "gap_y": float}
         self.pipes = []
         self._spawn_pipe(SCREEN_WIDTH + 100)
-        self._spawn_pipe(SCREEN_WIDTH + 100 + 300)
+        self._spawn_pipe(SCREEN_WIDTH + 100 + PIPE_SPACING)
 
-        self.ground_x = 0
+        self.ground_x = 0.0
+        self.last_tick_time = time.perf_counter()
 
         obs = self._get_obs()
         return obs, {}
 
-    # Every step advances the game by one frame
-    def step(self, action):
+    def _physics_tick(self, action):
+        """Advance game state by exactly one fixed-rate physics tick."""
         self.frame += 1
 
         # Apply action
         if action == 1 and not self.bird_dead:
-            self.bird_speed = -SPEED
+            self.bird_speed = FLAP_POWER
 
-        # Update bird 
+        # Update bird physics
         self.bird_speed += GRAVITY
+        self.bird_speed = min(self.bird_speed, MAX_FALL_SPEED)
         self.bird_y += self.bird_speed
 
         # Update pipes
         for p in self.pipes:
-            p["x"] -= GAME_SPEED
+            p["x"] -= PIPE_SPEED
 
-        # Remove off-screen pipes and score
-        new_pipes = []
-        for p in self.pipes:
-            if p["x"] + PIPE_WIDTH > 0:
-                new_pipes.append(p)
-            else:
-                self.score += 1
-        self.pipes = new_pipes
+        # Remove off-screen pipes
+        self.pipes = [p for p in self.pipes if p["x"] + PIPE_WIDTH > 0]
 
-        # Spawn new pipes
+        # Spawn new pipes to maintain at least 2 ahead
         if len(self.pipes) < 2:
             rightmost = max(p["x"] for p in self.pipes) if self.pipes else SCREEN_WIDTH
-            spacing = max(rightmost + 300, SCREEN_WIDTH + 100)
+            spacing = max(rightmost + PIPE_SPACING, SCREEN_WIDTH + 100)
             self._spawn_pipe(spacing)
 
         # Update ground scroll
-        self.ground_x = (self.ground_x - GAME_SPEED) % -(SCREEN_WIDTH * 2)
+        self.ground_x = (self.ground_x - PIPE_SPEED) % -(SCREEN_WIDTH * 2)
 
         # Bird rect for collision
-        bird_w, bird_h = 34, 24  # approximate bird sprite size
-        bird_rect = pygame.Rect(self.bird_x, self.bird_y, bird_w, bird_h)
+        bird_rect = pygame.Rect(self.bird_x, self.bird_y, BIRD_WIDTH, BIRD_HEIGHT)
 
         # Check collisions
         terminated = False
-        reward = 0.1  # small reward for surviving each frame
+        reward = 0.1  # small reward for surviving each tick
 
-        # Lose condition for hitting ceiling
+        # Ceiling
         if self.bird_y <= 0:
             terminated = True
 
-        # Lose condition for hitting ground
-        if self.bird_y + bird_h >= SCREEN_HEIGHT - GROUND_HEIGHT:
+        # Ground
+        if self.bird_y + BIRD_HEIGHT >= SCREEN_HEIGHT - GROUND_HEIGHT:
             terminated = True
 
-        # Pipe collision and lose condition for hitting pipe
+        # Pipe collision
         for p in self.pipes:
             top_rect = pygame.Rect(p["x"], p["gap_y"] - PIPE_HEIGHT, PIPE_WIDTH, PIPE_HEIGHT)
             bot_rect = pygame.Rect(p["x"], p["gap_y"] + PIPE_GAP, PIPE_WIDTH, PIPE_HEIGHT)
             if bird_rect.colliderect(top_rect) or bird_rect.colliderect(bot_rect):
                 terminated = True
 
-        # Punish agent for losing
         if terminated:
             reward = -1.0
 
-        # Bonus reward for passing a pipe
+        # Score: flag-based, triggers exactly once per pipe
+        bird_right = self.bird_x + BIRD_WIDTH
         for p in self.pipes:
-            pipe_mid = p["x"] + PIPE_WIDTH / 2
-            bird_mid = self.bird_x + bird_w / 2
-            if abs(pipe_mid - bird_mid) < GAME_SPEED / 2 + 0.5:
-                reward += 1.5
+            pipe_right = p["x"] + PIPE_WIDTH
+            if not p["scored"] and bird_right > pipe_right:
+                p["scored"] = True
+                self.score += 1
+                if not terminated:
+                    reward += 1.5
 
         obs = self._get_obs()
         truncated = False
 
+        return obs, reward, terminated, truncated, {"score": self.score}
+
+    def step(self, action):
+        # Always run exactly one physics tick per step call.
+        # This keeps training deterministic: one action = one tick.
+        obs, reward, terminated, truncated, info = self._physics_tick(action)
+
         if self.render_mode == "human":
             self.render()
 
-        return obs, reward, terminated, truncated, {"score": self.score}
+        return obs, reward, terminated, truncated, info
 
-    # Allows us to visualize agent playing in the environment
     def render(self):
         if self.screen is None:
             self._init_render()
@@ -216,10 +228,8 @@ class FlappyBirdEnv(gym.Env):
 
         # Draw pipes
         for p in self.pipes:
-            # Bottom pipe
             bot_y = p["gap_y"] + PIPE_GAP
             self.screen.blit(self.pipe_img, (p["x"], bot_y))
-            # Top pipe (flipped)
             top_y = p["gap_y"] - PIPE_HEIGHT
             self.screen.blit(self.pipe_img_flipped, (p["x"], top_y))
 
@@ -231,14 +241,12 @@ class FlappyBirdEnv(gym.Env):
         self.screen.blit(self.bird_img, (self.bird_x, self.bird_y))
 
         # Draw collision boxes (debug)
-        bird_w, bird_h = 34, 24
-        pygame.draw.rect(self.screen, (255, 0, 0), (self.bird_x, self.bird_y, bird_w, bird_h), 2)
+        pygame.draw.rect(self.screen, (255, 0, 0), (self.bird_x, self.bird_y, BIRD_WIDTH, BIRD_HEIGHT), 2)
         for p in self.pipes:
             top_rect = pygame.Rect(p["x"], p["gap_y"] - PIPE_HEIGHT, PIPE_WIDTH, PIPE_HEIGHT)
             bot_rect = pygame.Rect(p["x"], p["gap_y"] + PIPE_GAP, PIPE_WIDTH, PIPE_HEIGHT)
             pygame.draw.rect(self.screen, (0, 255, 0), top_rect, 2)
             pygame.draw.rect(self.screen, (0, 255, 0), bot_rect, 2)
-
 
         # Draw score
         font = pygame.font.SysFont(None, 36)
@@ -246,6 +254,8 @@ class FlappyBirdEnv(gym.Env):
         self.screen.blit(score_surf, (SCREEN_WIDTH / 2, 30))
 
         pygame.display.flip()
+
+        # Cap rendering FPS without affecting physics
         self.clock.tick(self.metadata["render_fps"])
 
     def close(self):
@@ -275,7 +285,6 @@ if __name__ == "__main__":
 
         if terminated:
             print(f"Game Over! Score: {info['score']}. Press R to restart")
-            # Wait for restart
             waiting = True
             while waiting and running:
                 for event in pygame.event.get():

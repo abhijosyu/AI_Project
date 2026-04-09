@@ -11,11 +11,11 @@ from flappy_bird_env import FlappyBirdEnv
 
 def build_q_network(state_dim, action_dim):
     return nn.Sequential(
-        nn.Linear(state_dim, 128),
+        nn.Linear(state_dim, 256),
         nn.ReLU(),
-        nn.Linear(128, 128),
+        nn.Linear(256, 256),
         nn.ReLU(),
-        nn.Linear(128, action_dim)
+        nn.Linear(256, action_dim)
     )
 
 
@@ -54,42 +54,43 @@ def select_action(state, q_network, epsilon, action_dim, device):
     if random.random() < epsilon:
         return random.randrange(action_dim)
 
-    state_tensor = torch.tensor(state, dtype=torch.float32).reshape(1, -1)
-
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
     q_values = q_network(state_tensor).detach()
 
     return torch.argmax(q_values, dim=1).item()
 
 def train_step(batch, q_net, target_net, optimizer, loss_fn, gamma, device):
     states, actions, rewards, next_states, dones = batch
-    
+
     # Convert to tensors
     states = torch.from_numpy(states).to(device)
-    actions = torch.from_numpy(actions).to(device)   
+    actions = torch.from_numpy(actions).to(device)
     rewards = torch.from_numpy(rewards).to(device)
     next_states = torch.from_numpy(next_states).to(device)
     dones = torch.from_numpy(dones).to(device)
-    
+
     # Current Q-values from network
     current_q = q_net(states).gather(dim=1, index=actions.unsqueeze(1)).squeeze(1)
-    
-    # Get target Q-values from trozen target network
+
+    # Get target Q-values from frozen target network
     with torch.no_grad():
         next_q = target_net(next_states).max(dim=1).values
         target_q = rewards + gamma * next_q * (1 - dones)
-    
+
     loss = loss_fn(current_q, target_q)
-    
+
     optimizer.zero_grad()
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(q_net.parameters(), max_norm=10)
+
+    # Log gradient norm before clipping
+    grad_norm = torch.nn.utils.clip_grad_norm_(q_net.parameters(), max_norm=10)
+
     optimizer.step()
-    
-    return loss.item()
+
+    return loss.item(), grad_norm.item()
 
 def sync_target_network(q_net, target_net):
     target_net.load_state_dict(q_net.state_dict())
 
-def epsilon_decay(epsilon, epsilon_min, epsilon_decay):
-    return max(epsilon_min, epsilon * epsilon_decay)
-    
+def epsilon_decay(epsilon, epsilon_min, epsilon_decay_rate):
+    return max(epsilon_min, epsilon * epsilon_decay_rate)
