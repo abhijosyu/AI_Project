@@ -17,17 +17,17 @@ from flappy_dqn import (
 train_flag = 'train' in sys.argv
 
 # Hyperparameters
-BUFFER_SIZE        = 50000
+BUFFER_SIZE        = 100000
 BATCH_SIZE         = 64
 GAMMA              = 0.99
 EPSILON_START      = 1.0
 EPSILON_MIN        = 0.01
-EPSILON_DECAY_RATE = 0.9999  # per-step decay (slower, more consistent)
-TARGET_UPDATE_FREQ = 200
-WARMUP_STEPS       = 1000
-MAX_EPISODES       = 1000
-LEARNING_RATE      = 1e-4
-PATIENCE           = 500     # early stopping if no improvement
+EPSILON_DECAY_RATE = 0.99999  
+TARGET_UPDATE_FREQ = 500
+WARMUP_STEPS       = 5000
+MAX_EPISODES       = 10000
+LEARNING_RATE      = 5e-5
+PATIENCE           = 1000   
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -50,7 +50,8 @@ if train_flag:
     best_reward = -float('inf')
     episodes_since_improvement = 0
 
-    for episode in range(1, MAX_EPISODES + 1):
+    try:
+      for episode in range(1, MAX_EPISODES + 1):
         state, _ = env.reset()
         episode_reward = 0
         loss = None
@@ -94,10 +95,8 @@ if train_flag:
         else:
             episodes_since_improvement += 1
 
-        # Early stopping
-        if episodes_since_improvement >= PATIENCE:
-            print(f"No improvement for {PATIENCE} episodes. Stopping early.")
-            break
+    except KeyboardInterrupt:
+        print(f"\nTraining interrupted at episode {episode}.")
 
     print(f"Training complete. Best reward: {best_reward:.2f}")
 
