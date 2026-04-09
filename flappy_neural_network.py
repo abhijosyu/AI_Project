@@ -2,7 +2,7 @@ import numpy as np
 
 class FlappyNeuralNetwork():
     
-    def __init__(self, layers, activation='tanh'):
+    def __init__(self, layers, activation="tanh"):
         self.layers = layers
         self.activation = activation
         self.weights = []

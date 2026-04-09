@@ -30,12 +30,22 @@ def run_genetic_algo(layers, population_size, generations, mutation_rate):
     # Create initial populate of random genomes
     genome_length = sum(layers[i] * layers[i + 1] + layers[i + 1] for i in range(len(layers) - 1))
     population = [np.random.randn(genome_length) for _ in range(population_size)]
+
+    best_history = []
+    avg_history = []
+
     
     for gen in range(generations):
         # Evaluate fitness for each genome
         fitness_scores = [evaluate_fitness(g, layers) for g in population]
         print(f"Gen {gen} | Best: {max(fitness_scores):.2f} | Avg: {np.mean(fitness_scores):.2f}")
         
+        best = max(fitness_scores)
+        avg = np.mean(fitness_scores)
+
+        best_history.append(best)
+        avg_history.append(avg)
+
         # Select the best ones (keeps top 20%)
         top_k = population_size // 5
         ranked = np.argsort(fitness_scores)[::-1]
@@ -54,7 +64,7 @@ def run_genetic_algo(layers, population_size, generations, mutation_rate):
     
     fitness_scores = [evaluate_fitness(g, layers) for g in population]
     best_idx = np.argmax(fitness_scores)
-    return population[best_idx]
+    return population[best_idx], best_history, avg_history
         
 def crossover(parent1, parent2):
     point = np.random.randint(1, len(parent1))
