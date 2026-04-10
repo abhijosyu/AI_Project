@@ -13,6 +13,8 @@ from flappy_dqn import (
     sync_target_network,
     epsilon_decay
 )
+import matplotlib.pyplot as plt
+
 
 train_flag = 'train' in sys.argv
 
@@ -50,6 +52,11 @@ if train_flag:
     best_reward = -float('inf')
     episodes_since_improvement = 0
 
+    timestep_hist = []
+    reward_hist = []
+    moving_avg_hist = []
+    episode_rewards_window = []
+
     try:
       for episode in range(1, MAX_EPISODES + 1):
         state, _ = env.reset()
@@ -80,6 +87,15 @@ if train_flag:
 
             if done:
                 break
+            
+        timestep_hist.append(total_steps)
+        reward_hist.append(episode_reward)
+        episode_rewards_window.append(episode_reward)
+        if len(episode_rewards_window) > 100:
+            episode_rewards_window.pop(0)
+
+        moving_avg = sum(episode_rewards_window) / len(episode_rewards_window)
+        moving_avg_hist.append(moving_avg)
 
         # Logging
         grad_str = f"{grad_norm:.4f}" if grad_norm is not None else "N/A"
@@ -99,6 +115,18 @@ if train_flag:
         print(f"\nTraining interrupted at episode {episode}.")
 
     print(f"Training complete. Best reward: {best_reward:.2f}")
+
+    plt.figure(figsize=(12, 7))
+    plt.plot(timestep_hist, reward_hist, label="Episode Reward")
+    plt.plot(timestep_hist, moving_avg_hist, label="Moving Average Reward")
+    plt.title("DQN Training Performance")
+    plt.xlabel("Timesteps")
+    plt.ylabel("Reward")
+    plt.legend()
+    plt.grid(True)
+    title = f'dqn_learn{LEARNING_RATE}_buffer_{BUFFER_SIZE}.png'
+    plt.savefig(title)
+    plt.show()
 
 else:
     print("Rendering DQN agent...")
