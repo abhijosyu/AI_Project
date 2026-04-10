@@ -2,9 +2,13 @@
 __pycache__/
 *.py[cod]
 *.pyo
+*$py.class
+
+# Virtual environments
 .env
 venv/
 env/
+.venv/
 
 # Training outputs
 *.pth
@@ -14,6 +18,12 @@ runs/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Pytest
+.pytest_cache/
+
+# Saved models (we commit the finalized version, but ignore intermediate dumps if needed)
+# models/*.zip
 
 # OS
 .DS_Store

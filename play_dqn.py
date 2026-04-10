@@ -3,7 +3,7 @@ from flappy_bird_env import FlappyBirdEnv
 
 def main():
     env = FlappyBirdEnv(render_mode="human")
-    model = DQN.load("dqn_flappy")
+    model = DQN.load("models/dqn_flappy")
 
     obs, info = env.reset()
 

@@ -24,12 +24,12 @@ BATCH_SIZE         = 64
 GAMMA              = 0.99
 EPSILON_START      = 1.0
 EPSILON_MIN        = 0.01
-EPSILON_DECAY_RATE = 0.99999  
+EPSILON_DECAY_RATE = 0.99999
 TARGET_UPDATE_FREQ = 500
 WARMUP_STEPS       = 5000
 MAX_EPISODES       = 10000
 LEARNING_RATE      = 5e-5
-PATIENCE           = 1000   
+PATIENCE           = 1000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -87,7 +87,7 @@ if train_flag:
 
             if done:
                 break
-            
+
         timestep_hist.append(total_steps)
         reward_hist.append(episode_reward)
         episode_rewards_window.append(episode_reward)
