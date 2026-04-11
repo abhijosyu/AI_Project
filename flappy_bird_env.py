@@ -40,7 +40,7 @@ TICK_DT = 1.0 / TICK_RATE
 class FlappyBirdEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
-    def __init__(self, render_mode=None):
+    def __init__(self, render_mode=None, bird_color="yellow"):
         super().__init__()
         self.render_mode = render_mode
 
@@ -71,21 +71,25 @@ class FlappyBirdEnv(gym.Env):
         self.background = None
 
         if self.render_mode == "human":
-            self._init_render()
+            self._init_render(bird_color)
 
-    def _init_render(self):
+    def _init_render(self, bird_color):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption('Flappy Bird')
         self.clock = pygame.time.Clock()
         self.background = pygame.image.load('assets/sprites/background-day.png')
         self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.bird_img = pygame.image.load('assets/sprites/bluebird-upflap.png').convert_alpha()
         self.pipe_img = pygame.image.load('assets/sprites/pipe-green.png').convert_alpha()
         self.pipe_img = pygame.transform.scale(self.pipe_img, (PIPE_WIDTH, PIPE_HEIGHT))
         self.pipe_img_flipped = pygame.transform.flip(self.pipe_img, False, True)
         self.ground_img = pygame.image.load('assets/sprites/base.png').convert_alpha()
         self.ground_img = pygame.transform.scale(self.ground_img, (SCREEN_WIDTH * 2, GROUND_HEIGHT))
+        
+        if bird_color == "yellow":
+            self.bird_img = pygame.image.load('assets/sprites/yellowbird-upflap.png').convert_alpha()
+        elif bird_color == "blue":
+            self.bird_img = pygame.image.load('assets/sprites/bluebird-upflap.png').convert_alpha()
 
     def _get_obs(self):
         # Find the next pipe pair (closest pipe ahead of the bird)

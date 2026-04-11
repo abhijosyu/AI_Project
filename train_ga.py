@@ -48,7 +48,7 @@ def render(layers):
     net = FlappyNeuralNetwork(layers)
     net.set_weights(best_genome)
 
-    env = FlappyBirdEnv(render_mode="human")
+    env = FlappyBirdEnv(render_mode="human", bird_color="blue")
     obs, _ = env.reset()
 
     while True:
