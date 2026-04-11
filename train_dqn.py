@@ -19,17 +19,33 @@ import matplotlib.pyplot as plt
 train_flag = 'train' in sys.argv
 
 # Hyperparameters
-BUFFER_SIZE        = 100000
-BATCH_SIZE         = 64
-GAMMA              = 0.99
-EPSILON_START      = 1.0
-EPSILON_MIN        = 0.01
-EPSILON_DECAY_RATE = 0.99999
-TARGET_UPDATE_FREQ = 500
-WARMUP_STEPS       = 5000
-MAX_EPISODES       = 10000
-LEARNING_RATE      = 5e-5
-PATIENCE           = 1000
+# --- Replay Buffer & Sampling ---
+BUFFER_SIZE        = 100000      # Maximum transitions stored in the replay buffer
+BATCH_SIZE         = 64          # Number of transitions sampled per training step
+
+# --- Discount & Exploration ---
+GAMMA              = 0.99        # Discount factor for future rewards
+EPSILON_START      = 1.0         # Initial exploration rate
+EPSILON_MIN        = 0.01        # Minimum (floor) exploration rate
+EPSILON_DECAY_RATE = 0.99999     # Multiplicative decay applied each environment step
+
+# --- Training Schedule ---
+TARGET_UPDATE_FREQ = 500         # Steps between hard target-network syncs
+WARMUP_STEPS       = 5000        # Steps of pure exploration before learning begins
+MAX_EPISODES       = 10000       # Hard cap on training episodes
+LEARNING_RATE      = 5e-5        # Adam optimizer learning rate
+PATIENCE           = 1000        # Episodes without improvement before early-stop (unused)
+
+# --- Network Architecture ---
+HIDDEN_SIZE        = 256         # Number of units in each hidden layer of the Q-network
+NUM_HIDDEN_LAYERS  = 2           # Number of hidden layers
+
+# --- Optimization ---
+GRAD_CLIP_NORM     = 10.0        # Max gradient norm for clipping (SmoothL1 loss)
+
+# --- Logging & Evaluation ---
+REWARD_WINDOW_SIZE = 100         # Rolling window size for moving-average reward logging
+MODEL_SAVE_PATH    = "best_dqn.pth"  # Path to save the best model checkpoint
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -39,8 +55,8 @@ if train_flag:
     state_dim  = env.observation_space.shape[0]
     action_dim = env.action_space.n
 
-    q_net = build_q_network(state_dim, action_dim).to(device)
-    target_net = build_q_network(state_dim, action_dim).to(device)
+    q_net = build_q_network(state_dim, action_dim, hidden_size=HIDDEN_SIZE).to(device)
+    target_net = build_q_network(state_dim, action_dim, hidden_size=HIDDEN_SIZE).to(device)
     sync_target_network(q_net, target_net)
 
     optimizer = optim.Adam(q_net.parameters(), lr=LEARNING_RATE)
@@ -80,7 +96,7 @@ if train_flag:
 
             if len(replay_buffer) >= BATCH_SIZE and total_steps >= WARMUP_STEPS:
                 batch = sample_from_replay_buffer(replay_buffer, BATCH_SIZE)
-                loss, grad_norm = train_step(batch, q_net, target_net, optimizer, loss_fn, GAMMA, device)
+                loss, grad_norm = train_step(batch, q_net, target_net, optimizer, loss_fn, GAMMA, device, GRAD_CLIP_NORM)
 
             if total_steps % TARGET_UPDATE_FREQ == 0:
                 sync_target_network(q_net, target_net)
@@ -91,7 +107,7 @@ if train_flag:
         timestep_hist.append(total_steps)
         reward_hist.append(episode_reward)
         episode_rewards_window.append(episode_reward)
-        if len(episode_rewards_window) > 100:
+        if len(episode_rewards_window) > REWARD_WINDOW_SIZE:
             episode_rewards_window.pop(0)
 
         moving_avg = sum(episode_rewards_window) / len(episode_rewards_window)
@@ -106,7 +122,7 @@ if train_flag:
         if episode_reward > best_reward:
             best_reward = episode_reward
             episodes_since_improvement = 0
-            torch.save(q_net.state_dict(), "best_dqn.pth")
+            torch.save(q_net.state_dict(), MODEL_SAVE_PATH)
             print(f"  -> New best reward: {best_reward:.2f}, model saved!")
         else:
             episodes_since_improvement += 1

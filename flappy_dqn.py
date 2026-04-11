@@ -9,13 +9,13 @@ import torch.optim as optim
 from flappy_bird_env import FlappyBirdEnv
 
 
-def build_q_network(state_dim, action_dim):
+def build_q_network(state_dim, action_dim, hidden_size=256):
     return nn.Sequential(
-        nn.Linear(state_dim, 256),
+        nn.Linear(state_dim, hidden_size),
         nn.ReLU(),
-        nn.Linear(256, 256),
+        nn.Linear(hidden_size, hidden_size),
         nn.ReLU(),
-        nn.Linear(256, action_dim)
+        nn.Linear(hidden_size, action_dim)
     )
 
 
@@ -59,7 +59,7 @@ def select_action(state, q_network, epsilon, action_dim, device):
 
     return torch.argmax(q_values, dim=1).item()
 
-def train_step(batch, q_net, target_net, optimizer, loss_fn, gamma, device):
+def train_step(batch, q_net, target_net, optimizer, loss_fn, gamma, device, max_norm=10):
     states, actions, rewards, next_states, dones = batch
 
     # Convert to tensors
@@ -83,7 +83,7 @@ def train_step(batch, q_net, target_net, optimizer, loss_fn, gamma, device):
     loss.backward()
 
     # Log gradient norm before clipping
-    grad_norm = torch.nn.utils.clip_grad_norm_(q_net.parameters(), max_norm=10)
+    grad_norm = torch.nn.utils.clip_grad_norm_(q_net.parameters(), max_norm=max_norm)
 
     optimizer.step()
 
