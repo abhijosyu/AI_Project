@@ -6,17 +6,7 @@ from flappy_bird_env import FlappyBirdEnv
 import matplotlib.pyplot as plt
 
 
-train_flag = 'train' in sys.argv
-
-# hyperparameters
-layers = [5, 12, 2]
-population_size = 350
-generations = 50
-mutation_rate = 0.1
-
-# Train
-if train_flag:
-
+def train(layers, population_size, generations, mutation_rate):
     print("Training GA...")
     best_genome, best_history, avg_history = run_genetic_algo(layers, population_size, generations, mutation_rate)
 
@@ -39,8 +29,7 @@ if train_flag:
     plt.savefig(title, dpi=300)
     plt.close() # Prevents blocking popup window
 
-# Watch it play
-else: 
+def render(layers):
     print("Rendering best genome...")
     best_genome = np.load("best_genome.npy")
     net = FlappyNeuralNetwork(layers)
@@ -57,3 +46,17 @@ else:
             break
 
     env.close()
+
+if __name__ == "__main__":
+    train_flag = 'train' in sys.argv
+
+    # hyperparameters
+    layers = [5, 12, 2]
+    population_size = 350
+    generations = 50
+    mutation_rate = 0.1
+
+    if train_flag:
+        train(layers, population_size, generations, mutation_rate)
+    else:
+        render(layers)
