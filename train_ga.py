@@ -47,8 +47,12 @@ def render(layers):
 
     env.close()
 
+import argparse
+
 if __name__ == "__main__":
-    train_flag = 'train' in sys.argv
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train", action="store_true", help="Train the model")
+    args = parser.parse_args()
 
     # hyperparameters
     layers = [5, 12, 2]
@@ -56,7 +60,7 @@ if __name__ == "__main__":
     generations = 50
     mutation_rate = 0.1
 
-    if train_flag:
+    if args.train:
         train(layers, population_size, generations, mutation_rate)
     else:
         render(layers)
