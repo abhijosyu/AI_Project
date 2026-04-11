@@ -1,3 +1,7 @@
+"""
+Training script for Flappy Bird using a Genetic Algorithm.
+Supports training of neural network weights and visual playback of the best genome.
+"""
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
@@ -9,6 +13,10 @@ from flappy_bird_env import FlappyBirdEnv
 MODEL_SAVE_PATH = "best_genome.npy"
 
 def train(layers, population_size, generations, mutation_rate):
+    """
+    Executes the genetic algorithm training process.
+    Saves the best individual's genome and generates performance visualizations.
+    """
     print("Training GA...")
     best_genome, best_history, avg_history = run_genetic_algo(layers, population_size, generations, mutation_rate)
 
@@ -32,6 +40,9 @@ def train(layers, population_size, generations, mutation_rate):
     plt.close() # Prevents blocking popup window
 
 def render(layers):
+    """
+    Loads a trained genome and renders the game environment to visualize performance.
+    """
     print("Rendering best genome...")
     best_genome = np.load(MODEL_SAVE_PATH)
     net = FlappyNeuralNetwork(layers)
