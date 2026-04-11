@@ -12,7 +12,7 @@ train_flag = 'train' in sys.argv
 layers = [5, 12, 2]
 population_size = 500
 generations = 80
-mutation_rate = 0.05
+mutation_rate = 0.15
 
 # Train
 if train_flag:
