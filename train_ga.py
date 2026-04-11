@@ -10,9 +10,9 @@ train_flag = 'train' in sys.argv
 
 # hyperparameters
 layers = [5, 12, 2]
-population_size = 500
+population_size = 100
 generations = 80
-mutation_rate = 0.01
+mutation_rate = 0.05
 
 # Train
 if train_flag:
