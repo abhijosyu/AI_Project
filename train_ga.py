@@ -35,9 +35,9 @@ if train_flag:
     plt.ylabel("Fitness")
     plt.title("Genetic Algorithm Performance")
     plt.legend()
-    plt.show()
     title = f"ga_performance pop_{population_size}_gen_{generations}_mut_{mutation_rate}.png" 
     plt.savefig(title, dpi=300)
+    plt.close() # Prevents blocking popup window
 
 # Watch it play
 else: 
