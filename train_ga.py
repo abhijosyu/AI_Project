@@ -1,22 +1,24 @@
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
+import argparse
 from flappy_genetic_algo import run_genetic_algo
 from flappy_neural_network import FlappyNeuralNetwork
 from flappy_bird_env import FlappyBirdEnv
-import matplotlib.pyplot as plt
 
+MODEL_SAVE_PATH = "best_genome.npy"
 
 def train(layers, population_size, generations, mutation_rate):
     print("Training GA...")
     best_genome, best_history, avg_history = run_genetic_algo(layers, population_size, generations, mutation_rate)
 
     # Save the best genome
-    np.save("best_genome.npy", best_genome)
+    np.save(MODEL_SAVE_PATH, best_genome)
     print(best_genome)
     print(best_history)
     print(avg_history)
 
-    print("Best genome saved to best_genome.npy")
+    print(f"Best genome saved to {MODEL_SAVE_PATH}")
 
     # Plot results
     plt.plot(best_history, label="Best Fitness")
@@ -31,7 +33,7 @@ def train(layers, population_size, generations, mutation_rate):
 
 def render(layers):
     print("Rendering best genome...")
-    best_genome = np.load("best_genome.npy")
+    best_genome = np.load(MODEL_SAVE_PATH)
     net = FlappyNeuralNetwork(layers)
     net.set_weights(best_genome)
 
@@ -46,8 +48,6 @@ def render(layers):
             break
 
     env.close()
-
-import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
