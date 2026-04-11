@@ -19,6 +19,19 @@ GROUND_HEIGHT = 112
 BIRD_WIDTH = 34
 BIRD_HEIGHT = 24
 
+# REWARD SHAPING
+REWARD_TICK        = 0.1   # reward given each tick the bird survives
+REWARD_DEATH       = -1.0  # reward (penalty) on collision / out-of-bounds
+REWARD_PIPE        = 1.5   # bonus reward for passing a pipe
+
+# PIPE SPAWN BOUNDS (fraction of playable height)
+PIPE_GAP_MIN_FRAC  = 0.2   # minimum gap-centre as fraction of playable height
+PIPE_GAP_MAX_FRAC  = 0.6   # maximum gap-centre as fraction of playable height
+PIPE_SPAWN_OFFSET  = 100   # extra pixels beyond screen edge before first pipe spawns
+
+# RENDERING
+SCORE_FONT_SIZE    = 36    # font size for the in-game score display
+
 # Physics tick rate — game logic always runs at this rate
 TICK_RATE = 30
 TICK_DT = 1.0 / TICK_RATE
@@ -108,10 +121,10 @@ class FlappyBirdEnv(gym.Env):
         return obs
 
     def _spawn_pipe(self, x):
-        # Gap can appear between 20% and 60% of playable height (above ground)
+        # Gap can appear between PIPE_GAP_MIN_FRAC and PIPE_GAP_MAX_FRAC of playable height
         playable_height = SCREEN_HEIGHT - GROUND_HEIGHT
-        min_gap_y = int(playable_height * 0.2)
-        max_gap_y = int(playable_height * 0.6)
+        min_gap_y = int(playable_height * PIPE_GAP_MIN_FRAC)
+        max_gap_y = int(playable_height * PIPE_GAP_MAX_FRAC)
         gap_y = self.np_random.integers(min_gap_y, max_gap_y)
         self.pipes.append({"x": float(x), "gap_y": int(gap_y), "scored": False})
 
@@ -126,8 +139,8 @@ class FlappyBirdEnv(gym.Env):
         self.frame = 0
 
         self.pipes = []
-        self._spawn_pipe(SCREEN_WIDTH + 100)
-        self._spawn_pipe(SCREEN_WIDTH + 100 + PIPE_SPACING)
+        self._spawn_pipe(SCREEN_WIDTH + PIPE_SPAWN_OFFSET)
+        self._spawn_pipe(SCREEN_WIDTH + PIPE_SPAWN_OFFSET + PIPE_SPACING)
 
         self.ground_x = 0.0
         self.last_tick_time = time.perf_counter()
@@ -169,7 +182,7 @@ class FlappyBirdEnv(gym.Env):
 
         # Check collisions
         terminated = False
-        reward = 0.1  # small reward for surviving each tick
+        reward = REWARD_TICK  # small reward for surviving each tick
 
         # Ceiling
         if self.bird_y <= 0:
@@ -187,7 +200,7 @@ class FlappyBirdEnv(gym.Env):
                 terminated = True
 
         if terminated:
-            reward = -1.0
+            reward = REWARD_DEATH
 
         # Score: flag-based, triggers exactly once per pipe
         bird_right = self.bird_x + BIRD_WIDTH
@@ -197,7 +210,7 @@ class FlappyBirdEnv(gym.Env):
                 p["scored"] = True
                 self.score += 1
                 if not terminated:
-                    reward += 1.5
+                    reward += REWARD_PIPE
 
         obs = self._get_obs()
         truncated = False
@@ -249,7 +262,7 @@ class FlappyBirdEnv(gym.Env):
             pygame.draw.rect(self.screen, (0, 255, 0), bot_rect, 2)
 
         # Draw score
-        font = pygame.font.SysFont(None, 36)
+        font = pygame.font.SysFont(None, SCORE_FONT_SIZE)
         score_surf = font.render(str(self.score), True, (255, 255, 255))
         self.screen.blit(score_surf, (SCREEN_WIDTH / 2, 30))
 
