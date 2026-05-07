@@ -2,9 +2,39 @@
 
 **Team:** Abhiram Josyula, Jessica Jain, Jaylen Zeng
 
+<![App Demo](assets/flappy_demo_V1.gif)>
+
 ## Overview
 
 This project explores training an AI agent to play Flappy Bird using two different machine learning approaches. We built a custom Flappy Bird environment from scratch using the Gymnasium API, and then trained agents using both Deep Q-Learning and a Genetic Algorithm. The goal was to compare how each method learns to navigate the game over time.
+
+## How to Run
+
+Before attempting to run this project, make sure you have Python 3.14 installed.
+
+``` python --version ```
+
+If not installed, install Python 3.14 depending on your OS.
+
+If you have Python installed, download all dependencies using: 
+
+``` pip install -r requirements.txt```
+
+Run each agent using the following commands:
+
+For Reinforcement Learning:
+
+``` 
+python train_dqn.py train // for training
+python train_dqn.py // to visualize once trained
+```
+
+For  Genetic Algorithms:
+
+```
+python train_ga.py --train
+python train_ga.py
+```
 
 ## Approaches
 
